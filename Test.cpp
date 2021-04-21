@@ -13,6 +13,7 @@ static vector<string> units = {"m"};
 ifstream units_file{"units.txt"};
 
 TEST_CASE("Multi operators"){
+    NumberWithUnits::read_units(units_file);
     NumberWithUnits a{1, "m"};
     NumberWithUnits b{3, "m"};
     NumberWithUnits c{300, "cm"};
@@ -42,17 +43,18 @@ TEST_CASE("All bool operators"){
     CHECK(d>=c);
     CHECK(c>=e);
     CHECK(e>=c);
-    CHECK(a<d);
+    CHECK(c<d);
     NumberWithUnits f{1, "kg"};
     NumberWithUnits g{1000, "g"};
-    CHECK_FALSE(b!=a);
+    CHECK_FALSE(f!=g);
     CHECK(g==f);
     CHECK(g<=f);
-    NumberWithUnits h{0.0001, "ton"};
+    NumberWithUnits h{0.001, "ton"};
     CHECK(f==h);
     CHECK(f==g);
-    NumberWithUnits i{0.0002, "ton"};
+    NumberWithUnits i{0.002, "ton"};
     CHECK(f!=i);
+    g++;
     CHECK(f!=g);
 }
 
@@ -67,13 +69,13 @@ TEST_CASE("+, -, +="){
     CHECK((b+=a)==c);
     CHECK((a+=c)==d);
     CHECK_FALSE((b+=a)==d);
-    NumberWithUnits e{0.5, "km"};
+    NumberWithUnits e{1, "km"};
     NumberWithUnits a2{2, "km"};
     NumberWithUnits b2{1000, "m"};
     CHECK((a2-b2)==e);
     NumberWithUnits f{500, "m"};
-    CHECK((b2-a2)==e);
-    CHECK((b2-a2)==f);
+    CHECK((b2-a2)==-e);
+    CHECK((b2-a2)==-(f*2));
 }
 
 TEST_CASE("Postfix and Prefix operators (++/--)"){
@@ -82,10 +84,9 @@ TEST_CASE("Postfix and Prefix operators (++/--)"){
     NumberWithUnits c{180, "min"};
     CHECK(++a==b);
     CHECK(++a==c);
-    CHECK(a++==a);
-    NumberWithUnits d{3, "hour"};
+    CHECK_FALSE(a++==a);
+    NumberWithUnits d{4, "hour"};
     CHECK(a==d);
     CHECK(--a==++b); 
     CHECK(a--==b);
 }
-
