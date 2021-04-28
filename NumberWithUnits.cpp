@@ -4,104 +4,57 @@
 #include <stdexcept>
 #include <map>
 #include <string.h>
+#include "graph.cpp"
 #include "NumberWithUnits.hpp"
-// #define BOOL true
 
 using namespace std;
-//m -> cm
-//cm -> m
-//km -> m
-//m -> km
+
 namespace ariel
 {
-    static map<string, map<string, double>> convertor; // convertor O(3)
+    static graph g;
 
-    double convertHelp(const string &from, const string &to, double fromVal)
-    {
-        if (from == to)
-        {
+    double NumberWithUnits::convert(const string &from, const string &to, double fromVal){
+        if(from == to){
             return fromVal;
         }
-        if (convertor.at(from).count(to) != 0)
-        {
-            return fromVal * convertor.at(from).at(to);
+        double retVal = g.getConv(from, to);
+        if(retVal > -1){
+            return fromVal*retVal;
         }
-        __throw_invalid_argument("Not valid convertion");
-        
+         __throw_invalid_argument("Not valid convertion");
     }
 
-    double convert(const string &from, const string &to, double fromVal)
-    {
-        if (from == to)
+    void NumberWithUnits::read_units(ifstream &f)
+    {    
+        string num1;
+        string num2;
+        string n;
+        string l;
+        double value1 = 0;
+        double value2 = 0;
+        while (getline(f, l))
         {
-            return fromVal;
-        }
-        if (convertor.at(from).count(to) != 0)
-        {
-            return fromVal * convertor.at(from).at(to);
-        }
-        map<string, double> m = convertor.at(from);
-        string s;
-        for (map<string, double>::iterator it = m.begin(); it != m.end(); ++it)
-        {
-            s = it->first;
-        }
-        return convertHelp(s, to, convert(from, s, fromVal));
-    }
-
-    void NumberWithUnits::read_units(ifstream &file)
-    {
-        double Dunit1 = 0;
-        double Dunit2 = 0;
-        string Munit1;
-        string Munit2;
-        string none;
-        string line;
-        while (getline(file, line))
-        {
-            istringstream Sstream(line);
-            if (!(Sstream >> Dunit1 >> Munit1 >> none >> Dunit2 >> Munit2))
+            istringstream Sstream(l);
+            if (!(Sstream >> value1 >> num1 >> n >> value2 >> num2))
             {
                 break;
             }
-
-            convertor[Munit1][Munit2] = Dunit2;     //from
-            convertor[Munit2][Munit1] = 1 / Dunit2; //to
+            g.addEdge(num1 ,num2, (value2/value1)); 
         }
     }
+    NumberWithUnits::NumberWithUnits(const double& value, const string &unit){ 
+        if (!g.checkExist(unit))
+        {
+           __throw_invalid_argument("Invalid unit");
+        }
+        num=value;
+        the_unit=unit;
+    }
 
-    NumberWithUnits operator+(const NumberWithUnits &unit1, const NumberWithUnits &unit2)
+    int comparison(const NumberWithUnits& num1, const NumberWithUnits& num2)
     {
-        double converted = convert(unit2._unit, unit1._unit, unit2._value);
-        return NumberWithUnits(unit1._value + converted, unit1._unit);
-    }
-    NumberWithUnits operator+=(NumberWithUnits &unit1, const NumberWithUnits &unit2)
-    {
-        unit1._value += convert(unit2._unit, unit1._unit, unit2._value);
-        return unit1;
-    }
-    NumberWithUnits operator+(const NumberWithUnits &unit, double num)
-    {
-        return NumberWithUnits(unit._value + num, unit._unit);
-    }
-    NumberWithUnits operator-(const NumberWithUnits &unit1, const NumberWithUnits &unit2)
-    {
-        double converted = convert(unit2._unit, unit1._unit, unit2._value);
-        return NumberWithUnits(unit1._value - converted, unit1._unit);
-    }
-    NumberWithUnits operator-=(NumberWithUnits &unit1, const NumberWithUnits &unit2)
-    {
-        unit1._value -= convert(unit2._unit, unit1._unit, unit2._value);
-        return unit1;
-    }
-    NumberWithUnits operator-(const NumberWithUnits &unit)
-    {
-        return NumberWithUnits(-unit._value, unit._unit);
-    }
-    int compare(const NumberWithUnits &n1, const NumberWithUnits &n2)
-    {
-        double x = n1._value - convert(n2._unit, n1._unit, n2._value);
-        double y = convert(n2._unit, n1._unit, n2._value) - n1._value;
+        double x = num1.num - NumberWithUnits::convert(num2.the_unit, num1.the_unit, num2.num);
+        double y = NumberWithUnits::convert(num2.the_unit, num1.the_unit, num2.num) - num1.num;
         const double epsilon = 0.00001;
         if (x > epsilon)
         {
@@ -114,23 +67,96 @@ namespace ariel
         return 0;
     }
 
-    bool operator>(const NumberWithUnits &unit1, const NumberWithUnits &unit2) { return compare(unit1, unit2) > 0; }
-    bool operator>=(const NumberWithUnits &unit1, const NumberWithUnits &unit2) { return compare(unit1, unit2) >= 0; }
-    bool operator<(const NumberWithUnits &unit1, const NumberWithUnits &unit2) { return compare(unit1, unit2) < 0; }
-    bool operator<=(const NumberWithUnits &unit1, const NumberWithUnits &unit2) { return compare(unit1, unit2) <= 0; }
-    bool operator==(const NumberWithUnits &unit1, const NumberWithUnits &unit2) { return compare(unit1, unit2) == 0; }
-    bool operator!=(const NumberWithUnits &unit1, const NumberWithUnits &unit2) { return compare(unit1, unit2) != 0; }
-    NumberWithUnits operator++(NumberWithUnits &unit) { return NumberWithUnits(++unit._value, unit._unit); }      //Prefix
-    NumberWithUnits operator++(NumberWithUnits &unit, int) { return NumberWithUnits(unit._value++, unit._unit); } //Postfix
-    NumberWithUnits operator--(NumberWithUnits &unit) { return NumberWithUnits(--unit._value, unit._unit); }      //Prefix
-    NumberWithUnits operator--(NumberWithUnits &unit, int) { return NumberWithUnits(unit._value++, unit._unit); } //Postfix
-    NumberWithUnits operator*(const NumberWithUnits &unit, double num) { return NumberWithUnits(num * unit._value, unit._unit); }
-    NumberWithUnits operator*(double num, const NumberWithUnits &unit) { return NumberWithUnits(num * unit._value, unit._unit); }
-    ostream &operator<<(const ostream &os, const NumberWithUnits &unit) { return cout << unit._value << "[" << unit._unit << "]" << endl; }
-    istream &operator>>(std::istream &in, NumberWithUnits &unit)
+    // in/out
+
+    ostream &operator<<(ostream &os, const NumberWithUnits &number) {
+        return (os <<  number.num << '[' << number.the_unit << ']'); 
+    }
+    istream &operator>>(std::istream &is, NumberWithUnits &unit)
     {
         string s;
-        in >> unit._value >> s >> unit._unit;
-        return in;
+        double number = 0;
+        char c = ']';
+        is >> number >> c;
+        while(c != ']'){
+            if(c != '['){
+                s.insert(s.end(), c);
+            }
+            is >> c;
+        }
+        unit.num = number;
+        unit.the_unit = s;
+        if(!g.checkExist(unit.the_unit)){
+            __throw_invalid_argument("Unit is not exist");
+        }
+        return is;
     }
+
+    
+    NumberWithUnits operator+(const NumberWithUnits &num1, const NumberWithUnits &num2)
+    {
+        double converted = NumberWithUnits::convert(num2.the_unit, num1.the_unit, num2.num);
+        return NumberWithUnits(num1.num + converted, num1.the_unit);
+    }
+    NumberWithUnits operator+(const NumberWithUnits& num1, double num) {
+        return NumberWithUnits(num1.num + num, num1.the_unit);
+    }
+    NumberWithUnits& NumberWithUnits::operator+=(const NumberWithUnits &num2)
+    {
+        double con = convert(num2.the_unit, this->the_unit, num2.num);
+        this->num += con; 
+        return *this;
+    }
+    NumberWithUnits operator-(const NumberWithUnits &num1, const NumberWithUnits &num2)
+    {
+        double converted = NumberWithUnits::convert(num2.the_unit, num1.the_unit, num2.num);
+        return NumberWithUnits(num1.num - converted, num1.the_unit);
+    }
+    NumberWithUnits operator-(const NumberWithUnits& num1, double num){
+        return NumberWithUnits(num1.num - num, num1.the_unit);
+    }   
+    NumberWithUnits& NumberWithUnits::operator-=(const NumberWithUnits &num2)
+    {
+        double con = convert(num2.the_unit, this->the_unit, num2.num);
+        this->num -= con; 
+        return *this;
+    }
+    
+
+
+    // bool operators
+    bool operator>(const NumberWithUnits &num1, const NumberWithUnits &num2) { return comparison(num1, num2) > 0; }
+    bool operator>=(const NumberWithUnits &num1, const NumberWithUnits &num2) { return comparison(num1, num2) >= 0; }
+    bool operator<(const NumberWithUnits &num1, const NumberWithUnits &num2) { return comparison(num1, num2) < 0; }
+    bool operator<=(const NumberWithUnits &num1, const NumberWithUnits &num2) { return comparison(num1, num2) <= 0; }
+    bool operator==(const NumberWithUnits &num1, const NumberWithUnits &num2) { return comparison(num1, num2) == 0; }
+    bool operator!=(const NumberWithUnits &num1, const NumberWithUnits &num2) { return comparison(num1, num2) != 0; }
+    
+    
+    // increment/decrement
+    NumberWithUnits& operator++(NumberWithUnits &number) { 
+        ++number.num;
+        return number; 
+    }    
+    NumberWithUnits operator++(NumberWithUnits &number, int) { 
+        NumberWithUnits temp = number; 
+        number.num++;
+        return temp; 
+    }
+    NumberWithUnits& operator--(NumberWithUnits &number) {
+        --number.num;
+        return number;
+    }    
+    NumberWithUnits operator--(NumberWithUnits &number, int) {
+        NumberWithUnits temp = number; 
+        number.num--;
+        return temp; 
+    } 
+    NumberWithUnits operator*(const NumberWithUnits &unit, double n) {
+        return NumberWithUnits{unit.num*n, unit.the_unit};
+    }
+    NumberWithUnits operator*(double n, const NumberWithUnits &unit) {
+        return NumberWithUnits{unit.num*n, unit.the_unit};
+    }
+    
 }
